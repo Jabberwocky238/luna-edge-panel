@@ -2,7 +2,7 @@ node_modules/
 dist/
 
 web/dist/assets/
-
+.gocache/
 *.exe
 *.dll
 *.so

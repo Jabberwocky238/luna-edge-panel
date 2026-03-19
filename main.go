@@ -17,7 +17,9 @@ import (
 //go:embed web/dist
 var webDist embed.FS
 
-type app struct{}
+type server struct {
+	client lnctlkit.ClientInterface
+}
 
 type errorResponse struct {
 	Error string `json:"error"`
@@ -56,16 +58,20 @@ type planRequest struct {
 	Routes           []planRouteInput `json:"routes"`
 }
 
-func main() {
-	addr := envOrDefault("LUNA_EDGE_PANEL_ADDR", "127.0.0.1:8090")
+func init() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+}
 
+func main() {
+	addr := envOrDefault("LUNA_EDGE_PANEL_ADDR", "127.0.0.1:18090")
 	mux := http.NewServeMux()
-	server := &app{}
+	client := lnctlkit.NewMockClient("sqlite://?mode=memory")
+	server := &server{client: client}
 	mux.HandleFunc("/api/query/domain", server.handleQueryDomain)
 	mux.HandleFunc("/api/query/dns", server.handleQueryDNS)
 	mux.HandleFunc("/api/plan/preview", server.handlePreviewPlan)
 	mux.HandleFunc("/api/plan/apply", server.handleApplyPlan)
-	mux.Handle("/", server.staticHandler())
+	mux.Handle("/", staticHandler())
 
 	log.Printf("listening on http://%s", addr)
 	if err := http.ListenAndServe(addr, withCORS(mux)); err != nil {
@@ -73,7 +79,7 @@ func main() {
 	}
 }
 
-func (a *app) handleQueryDomain(w http.ResponseWriter, r *http.Request) {
+func (s *server) handleQueryDomain(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
@@ -83,12 +89,7 @@ func (a *app) handleQueryDomain(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid json body")
 		return
 	}
-	client, err := newClient(req.MasterURL)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	projection, err := client.QueryDomainEntryProjection(req.Hostname)
+	projection, err := s.client.QueryDomainEntryProjection(req.Hostname)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, err.Error())
 		return
@@ -96,7 +97,7 @@ func (a *app) handleQueryDomain(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, projection)
 }
 
-func (a *app) handleQueryDNS(w http.ResponseWriter, r *http.Request) {
+func (s *server) handleQueryDNS(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
@@ -106,12 +107,7 @@ func (a *app) handleQueryDNS(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid json body")
 		return
 	}
-	client, err := newClient(req.MasterURL)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	records, err := client.QueryDNSRecords(req.Hostname, req.RecordType)
+	records, err := s.client.QueryDNSRecords(req.Hostname, req.RecordType)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, err.Error())
 		return
@@ -119,12 +115,12 @@ func (a *app) handleQueryDNS(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, records)
 }
 
-func (a *app) handlePreviewPlan(w http.ResponseWriter, r *http.Request) {
+func (s *server) handlePreviewPlan(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
-	plan, err := buildPlanFromRequest(r)
+	plan, err := s.buildPlanFromRequest(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
@@ -132,22 +128,17 @@ func (a *app) handlePreviewPlan(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, plan)
 }
 
-func (a *app) handleApplyPlan(w http.ResponseWriter, r *http.Request) {
+func (s *server) handleApplyPlan(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
-	req, plan, err := decodeAndBuildPlan(r)
+	_, plan, err := s.decodeAndBuildPlan(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	client, err := newClient(req.MasterURL)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	applied, err := client.ApplyPlan(plan)
+	applied, err := s.client.ApplyPlan(plan)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, err.Error())
 		return
@@ -155,7 +146,7 @@ func (a *app) handleApplyPlan(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, applied)
 }
 
-func (a *app) staticHandler() http.Handler {
+func staticHandler() http.Handler {
 	sub, err := fs.Sub(webDist, "web/dist")
 	if err != nil {
 		return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -176,31 +167,26 @@ func (a *app) staticHandler() http.Handler {
 	})
 }
 
-func decodeAndBuildPlan(r *http.Request) (*planRequest, *lnctlkit.Plan, error) {
+func (s *server) decodeAndBuildPlan(r *http.Request) (*planRequest, *lnctlkit.Plan, error) {
 	var req planRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return nil, nil, errors.New("invalid json body")
 	}
-	plan, err := buildPlan(req)
+	plan, err := s.buildPlan(req)
 	if err != nil {
 		return nil, nil, err
 	}
 	return &req, plan, nil
 }
 
-func buildPlanFromRequest(r *http.Request) (*lnctlkit.Plan, error) {
-	_, plan, err := decodeAndBuildPlan(r)
+func (s *server) buildPlanFromRequest(r *http.Request) (*lnctlkit.Plan, error) {
+	_, plan, err := s.decodeAndBuildPlan(r)
 	return plan, err
 }
 
-func buildPlan(req planRequest) (*lnctlkit.Plan, error) {
-	client, err := newClient(req.MasterURL)
-	if err != nil {
-		return nil, err
-	}
-
-	existingProjection, _ := client.QueryDomainEntryProjection(req.Hostname)
-	existingDNSRecords, _ := client.QueryDNSRecords(req.Hostname, req.DNSRecordType)
+func (s *server) buildPlan(req planRequest) (*lnctlkit.Plan, error) {
+	existingProjection, _ := s.client.QueryDomainEntryProjection(req.Hostname)
+	existingDNSRecords, _ := s.client.QueryDNSRecords(req.Hostname, req.DNSRecordType)
 
 	builder := lnctlkit.NewBuilder(req.Hostname).
 		WithExistingProjection(existingProjection).
@@ -245,14 +231,6 @@ func buildPlan(req planRequest) (*lnctlkit.Plan, error) {
 	}
 
 	return builder.Build()
-}
-
-func newClient(masterURL string) (*lnctlkit.Client, error) {
-	masterURL = strings.TrimSpace(masterURL)
-	if masterURL == "" {
-		return nil, errors.New("masterUrl is required")
-	}
-	return lnctlkit.NewClient(masterURL), nil
 }
 
 func envOrDefault(key, fallback string) string {
