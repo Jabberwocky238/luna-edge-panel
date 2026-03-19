@@ -74,9 +74,41 @@ export function DNSPage() {
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
 
+  function validateHostname(): string | null {
+    return hostname.trim() ? null : "hostname is required";
+  }
+
+  function validateRecords(): string | null {
+    if (records.length === 0) {
+      return "at least one dns record is required";
+    }
+    for (let index = 0; index < records.length; index += 1) {
+      const record = records[index];
+      if (!record.fqdn.trim()) {
+        return `record #${index + 1}: fqdn is required`;
+      }
+      if (!record.recordType.trim()) {
+        return `record #${index + 1}: record type is required`;
+      }
+      if (!Number.isFinite(record.ttlSeconds) || record.ttlSeconds <= 0) {
+        return `record #${index + 1}: ttl must be greater than 0`;
+      }
+      const values = record.values.map((item) => item.value.trim()).filter(Boolean);
+      if (values.length === 0) {
+        return `record #${index + 1}: at least one value is required`;
+      }
+    }
+    return null;
+  }
+
   async function handleQuery() {
     setError("");
     setStatus("");
+    const hostnameError = validateHostname();
+    if (hostnameError) {
+      setError(hostnameError);
+      return;
+    }
     try {
       const result = await postJSON<DNSRecord[]>("/api/query/dns", { hostname: hostname.trim() });
       setRecords(result.map((record) => toDraft(record)));
@@ -89,6 +121,16 @@ export function DNSPage() {
   async function handleConfirm() {
     setError("");
     setStatus("");
+    const hostnameError = validateHostname();
+    if (hostnameError) {
+      setError(hostnameError);
+      return;
+    }
+    const recordsError = validateRecords();
+    if (recordsError) {
+      setError(recordsError);
+      return;
+    }
     try {
       await postJSON("/api/dns/apply", {
         hostname: hostname.trim(),
@@ -184,13 +226,6 @@ export function DNSPage() {
               className="inline-flex items-center justify-center rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm font-semibold text-[var(--color-ink)]"
             >
               读取当前配置
-            </button>
-            <button
-              type="button"
-              onClick={handleConfirm}
-              className="inline-flex items-center justify-center rounded-2xl border border-black/10 bg-[var(--color-accent)] px-5 py-3 text-sm font-semibold text-white"
-            >
-              确定
             </button>
           </div>
         </div>

@@ -22,6 +22,29 @@ export function EndpointPage() {
   const [error, setError] = useState("");
   const normalizedRoutes = useMemo(() => normalizeRoutes(routes), [routes]);
 
+  function validateHostname(): string | null {
+    return hostname.trim() ? null : "hostname is required";
+  }
+
+  function validateRoutes(): string | null {
+    if (routes.length === 0) {
+      return "at least one route is required";
+    }
+    for (let index = 0; index < routes.length; index += 1) {
+      const route = routes[index];
+      if (!route.path.trim()) {
+        return `route #${index + 1}: path prefix is required`;
+      }
+      if (!route.externalEndpoint.trim()) {
+        return `route #${index + 1}: external target is required`;
+      }
+      if (!Number.isFinite(route.servicePort) || route.servicePort <= 0) {
+        return `route #${index + 1}: port must be greater than 0`;
+      }
+    }
+    return null;
+  }
+
   useEffect(() => {
     const draft = loadBuildDraft(buildId);
     if (!draft) {
@@ -53,6 +76,11 @@ export function EndpointPage() {
   async function handleQuery() {
     setError("");
     setStatus("");
+    const hostnameError = validateHostname();
+    if (hostnameError) {
+      setError(hostnameError);
+      return;
+    }
     try {
       const response = await postJSON<Projection>("/api/query/domain", {
         hostname: hostname.trim()
@@ -67,6 +95,16 @@ export function EndpointPage() {
   async function handleApply() {
     setError("");
     setStatus("");
+    const hostnameError = validateHostname();
+    if (hostnameError) {
+      setError(hostnameError);
+      return;
+    }
+    const routesError = validateRoutes();
+    if (routesError) {
+      setError(routesError);
+      return;
+    }
     try {
       await postJSON("/api/plan/apply", buildPlanPayload(hostname, routes));
       setStatus("已提交。");
@@ -105,13 +143,6 @@ export function EndpointPage() {
               className="inline-flex items-center justify-center rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm font-semibold text-[var(--color-ink)]"
             >
               读取当前配置
-            </button>
-            <button
-              className="inline-flex items-center justify-center rounded-2xl border border-black/10 bg-[var(--color-accent)] px-5 py-3 text-sm font-semibold text-white"
-              type="button"
-              onClick={handleApply}
-            >
-              确定
             </button>
           </div>
         </div>

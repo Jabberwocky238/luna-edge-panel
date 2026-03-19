@@ -100,8 +100,8 @@ export function projectionToRoutes(projection: Projection): RouteDraft[] {
       const route = item as {
         path?: string;
         Path?: string;
-        backend_ref?: { arbitrary_endpoint?: string; port?: number };
-        backendRef?: { arbitraryEndpoint?: string; port?: number };
+        backend_ref?: { arbitrary_endpoint?: string; arbitraryEndpoint?: string; port?: number };
+        backendRef?: { arbitrary_endpoint?: string; arbitraryEndpoint?: string; port?: number };
         backend_ref_id?: string;
       };
       const backendRef = route.backend_ref ?? route.backendRef;
