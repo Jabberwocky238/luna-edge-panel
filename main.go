@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/sha1"
 	"embed"
 	"encoding/json"
 	"errors"
@@ -9,11 +10,12 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 
 	lnctlkit "github.com/jabberwocky238/luna-edge/lnctl"
-	"github.com/miekg/dns"
 	"github.com/jabberwocky238/luna-edge/repository/metadata"
+	"github.com/miekg/dns"
 )
 
 //go:embed web/dist
@@ -75,7 +77,8 @@ func init() {
 func main() {
 	addr := envOrDefault("LUNA_EDGE_PANEL_ADDR", "127.0.0.1:18090")
 	mux := http.NewServeMux()
-	client := lnctlkit.NewClient(envOrDefault("LUNA_EDGE_PANEL_MASTER_URL", "http://127.0.0.1:8080"))
+	// client := lnctlkit.NewClient(envOrDefault("LUNA_EDGE_PANEL_MASTER_URL", "http://127.0.0.1:8080"))
+	client := lnctlkit.NewMockClient("sqlite://?mode=memory")
 	server := &server{client: client}
 	mux.HandleFunc("/api/query/domain", server.handleQueryDomain)
 	mux.HandleFunc("/api/query/dns", server.handleQueryDNS)
@@ -277,12 +280,12 @@ func (s *server) validateEndpointDNSReady(hostname string) error {
 		return fmt.Errorf("query public cname for %q: %w", hostname, err)
 	}
 	for _, value := range values {
-		if normalizeDNSValue(value) == normalizeDNSValue("n1.app238.com") {
+		if normalizeDNSValue(value) == normalizeDNSValue("ns1.app238.com") {
 			return nil
 		}
 	}
 
-	return fmt.Errorf("hostname %q must have a public CNAME to n1.app238.com before creating endpoint plan", hostname)
+	return fmt.Errorf("hostname %q must have a public CNAME to ns1.app238.com before creating endpoint plan", hostname)
 }
 
 func (s *server) queryAllDNSRecords(hostname string) ([]metadata.DNSRecord, error) {
@@ -361,6 +364,9 @@ func (s *server) buildDNSPlan(req dnsApplyRequest) (*lnctlkit.Plan, error) {
 			return nil, fmt.Errorf("marshal dns values: %w", err)
 		}
 		record.ValuesJSON = string(valuesJSON)
+		if record.ID == "" {
+			record.ID = defaultPanelDNSRecordID(record)
+		}
 		if current, ok := existingByID[record.ID]; ok && record.ID != "" {
 			desiredIDs[record.ID] = struct{}{}
 			currentCopy := current
@@ -393,6 +399,20 @@ func (s *server) buildDNSPlan(req dnsApplyRequest) (*lnctlkit.Plan, error) {
 		})
 	}
 	return plan, nil
+}
+
+func defaultPanelDNSRecordID(record metadata.DNSRecord) string {
+	payload := strings.Join([]string{
+		normalizeDNSValue(record.FQDN),
+		string(record.RecordType),
+		string(record.RoutingClass),
+		strings.TrimSpace(record.RoutingKey),
+		strconv.FormatUint(uint64(record.TTLSeconds), 10),
+		strings.TrimSpace(record.ValuesJSON),
+		strconv.FormatBool(record.Enabled),
+	}, "|")
+	sum := sha1.Sum([]byte(payload))
+	return fmt.Sprintf("panel-dns-%x", sum[:8])
 }
 
 func queryPublicCNAMEs(hostname string) ([]string, error) {

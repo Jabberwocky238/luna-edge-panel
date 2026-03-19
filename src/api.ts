@@ -1,5 +1,5 @@
-﻿export async function postJSON<T>(url: string, payload: unknown): Promise<T> {
-  const response = await fetch(url, {
+﻿export async function postJSON<T>(pathname: string, payload: unknown): Promise<T> {
+  const response = await fetch("http://127.0.0.1:18090" + pathname, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)

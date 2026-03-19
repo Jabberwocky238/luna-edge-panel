@@ -4,27 +4,32 @@ import { EndpointPage } from "./pages/EndpointPage";
 
 export function App() {
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
-        <div className="brand-block">
-          <p className="eyebrow">Luna Edge / lnctl</p>
-          <h1>Control Surface</h1>
-          <p className="sidebar-copy">面向 DNS 记录与 Endpoint 投影的最小控制面。默认先看 DNS，再进入更重的 Endpoint 配置流程。</p>
-        </div>
-
-        <nav className="nav-stack">
-          <NavLink to="/dns" className={({ isActive }) => (isActive ? "nav-card active" : "nav-card")}>
-            <strong>DNS</strong>
-            <span>按域名拉取并筛选 DNS records</span>
-          </NavLink>
-          <NavLink to="/endpoint" className={({ isActive }) => (isActive ? "nav-card active" : "nav-card")}>
-            <strong>Endpoint</strong>
-            <span>查询投影、配置后端、预览并提交 plan</span>
-          </NavLink>
-        </nav>
-      </aside>
-
-      <main className="content-shell">
+    <div className="min-h-screen">
+      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <section className="mb-5 rounded-[28px] border border-black/10 bg-white/70 p-3 shadow-[0_18px_60px_rgba(17,24,39,0.08)] backdrop-blur">
+          <div className="flex flex-wrap gap-3">
+            <NavLink
+              to="/dns"
+              className={({ isActive }) =>
+                isActive
+                  ? "inline-flex items-center justify-center rounded-2xl bg-[var(--color-accent)] px-4 py-3 text-sm font-semibold text-white"
+                  : "inline-flex items-center justify-center rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm font-semibold text-[var(--color-ink)]"
+              }
+            >
+              DNS
+            </NavLink>
+            <NavLink
+              to="/endpoint"
+              className={({ isActive }) =>
+                isActive
+                  ? "inline-flex items-center justify-center rounded-2xl bg-[var(--color-accent)] px-4 py-3 text-sm font-semibold text-white"
+                  : "inline-flex items-center justify-center rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm font-semibold text-[var(--color-ink)]"
+              }
+            >
+              Endpoint
+            </NavLink>
+          </div>
+        </section>
         <Routes>
           <Route path="/" element={<Navigate to="/dns" replace />} />
           <Route path="/dns" element={<DNSPage />} />
