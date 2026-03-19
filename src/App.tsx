@@ -28,7 +28,7 @@ export function App() {
         <Routes>
           <Route path="/" element={<Navigate to="/dns" replace />} />
           <Route path="/dns" element={<DNSPage />} />
-          <Route path="/endpoint" element={<EndpointPage />} />
+          <Route path="/endpoint/*" element={<EndpointPage />} />
         </Routes>
       </main>
     </div>
