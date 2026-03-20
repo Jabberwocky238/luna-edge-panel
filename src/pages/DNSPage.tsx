@@ -1,6 +1,17 @@
 import { useState } from "react";
 import { postJSON } from "../api";
 
+const DNS_RECORD_TYPE_SUGGESTIONS = [
+  "A",
+  "AAAA",
+  "CNAME",
+  "MX",
+  "NS",
+  "SOA",
+  "SRV",
+  "TXT",
+] as const;
+
 type DNSRecord = {
   id: string;
   fqdn: string;
@@ -39,6 +50,10 @@ function parseValues(valuesJSON: string): DNSValueDraft[] {
   } catch {
     return [{ id: "dns-value-1", value: "" }];
   }
+}
+
+function normalizeRecordType(value: string): string {
+  return value.trim().toUpperCase();
 }
 
 function toDraft(record?: DNSRecord, hostname?: string): DNSRecordDraft {
@@ -137,7 +152,7 @@ export function DNSPage() {
         records: records.map((record) => ({
           existingRecordId: record.existingRecordID ?? "",
           fqdn: record.fqdn.trim(),
-          recordType: record.recordType,
+          recordType: normalizeRecordType(record.recordType),
           routingClass: record.routingClass,
           routingKey: record.routingKey.trim(),
           ttlSeconds: record.ttlSeconds,
@@ -290,20 +305,13 @@ export function DNSPage() {
                   </label>
                   <label className="grid gap-2">
                     <span className="text-sm text-[var(--color-muted)]">Record Type</span>
-                    <select
+                    <input
                       value={record.recordType}
-                      onChange={(e) => updateRecord(record.id, { recordType: e.target.value })}
+                      onChange={(e) => updateRecord(record.id, { recordType: normalizeRecordType(e.target.value) })}
+                      list="dns-record-type-suggestions"
+                      placeholder="A / AAAA / CNAME / TXT / ..."
                       className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 outline-none"
-                    >
-                      <option value="A">A</option>
-                      <option value="AAAA">AAAA</option>
-                      <option value="CNAME">CNAME</option>
-                      <option value="TXT">TXT</option>
-                      <option value="MX">MX</option>
-                      <option value="NS">NS</option>
-                      <option value="SRV">SRV</option>
-                      <option value="CAA">CAA</option>
-                    </select>
+                    />
                   </label>
                   <label className="grid gap-2">
                     <span className="text-sm text-[var(--color-muted)]">TTL</span>
@@ -369,6 +377,12 @@ export function DNSPage() {
           )}
         </div>
       </section>
+
+      <datalist id="dns-record-type-suggestions">
+        {DNS_RECORD_TYPE_SUGGESTIONS.map((recordType) => (
+          <option key={recordType} value={recordType} />
+        ))}
+      </datalist>
 
       <section className="flex justify-end">
         <button

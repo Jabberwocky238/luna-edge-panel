@@ -35,7 +35,7 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
-            type=raw,value=publish
+            type=raw,value=latest,enabled={{ github.ref == 'refs/heads/publish' }}
             type=raw,value=sha-${{ github.sha }}
 
       - name: Build and push
