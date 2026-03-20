@@ -75,10 +75,17 @@ func init() {
 }
 
 func main() {
-	addr := envOrDefault("LUNA_EDGE_PANEL_ADDR", "127.0.0.1:18090")
+	debug := envOrDefault("DEBUG", "false")
+	var addr string
+	var client lnctlkit.ClientInterface
+	if debug == "true" {
+		client = lnctlkit.NewMockClient("sqlite://?mode=memory")
+		addr = envOrDefault("LUNA_EDGE_PANEL_ADDR", "127.0.0.1:18090")
+	} else {
+		client = lnctlkit.NewClient(envOrDefault("LUNA_EDGE_PANEL_MASTER_URL", "http://127.0.0.1:8080"))
+		addr = envOrDefault("LUNA_EDGE_PANEL_ADDR", ":18090")
+	}
 	mux := http.NewServeMux()
-	// client := lnctlkit.NewClient(envOrDefault("LUNA_EDGE_PANEL_MASTER_URL", "http://127.0.0.1:8080"))
-	client := lnctlkit.NewMockClient("sqlite://?mode=memory")
 	server := &server{client: client}
 	mux.HandleFunc("/api/query/domain", server.handleQueryDomain)
 	mux.HandleFunc("/api/query/dns", server.handleQueryDNS)

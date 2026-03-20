@@ -49,6 +49,43 @@ npm run dev
 
 Vite 开发服务会把 `/api` 代理到 `http://127.0.0.1:8090`。
 
+## Docker
+
+项目根目录提供了 `Dockerfile`，用于构建前后端一体镜像。
+
+运行时可通过环境变量指定实际 master：
+
+```bash
+LUNA_EDGE_PANEL_MASTER_URL=http://luna-edge-master.default.svc.cluster.local:8080
+```
+
+## GHCR 发布
+
+仓库包含 GitHub Actions 工作流：
+
+- 文件：`.github/workflows/publish-ghcr.yml`
+- 触发条件：push 到 `publish` 分支
+- 发布地址：`ghcr.io/<owner>/<repo>:publish`
+
+## Kubernetes 一键部署
+
+部署文件：
+
+```text
+deploy/luna-edge-panel.yaml
+```
+
+直接应用：
+
+```bash
+kubectl apply -f deploy/luna-edge-panel.yaml
+```
+
+使用前至少改这两个值：
+
+- `image: ghcr.io/OWNER/REPO:publish`
+- `LUNA_EDGE_PANEL_MASTER_URL`
+
 ## 依赖说明
 
 当前项目通过 `go.mod` 里的本地替换直接复用相邻目录：
