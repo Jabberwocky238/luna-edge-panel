@@ -1,10 +1,17 @@
-﻿export async function postJSON<T>(pathname: string, payload: unknown): Promise<T> {
+﻿const baseURL = () => {
+  if (window.location.hostname === "localhost") {
+    return "http://127.0.0.1:18090";
+  }
+  return "http://luna-edge-panel.luna-edge.svc.cluster.local:18090";
+}
+
+export async function postJSON<T>(pathname: string, payload: unknown): Promise<T> {
   const normalizedPath = pathname.trim();
   if (!normalizedPath.startsWith("/")) {
     throw new Error("pathname must start with /");
   }
 
-  const response = await fetch("http://127.0.0.1:18090" + normalizedPath, {
+  const response = await fetch(baseURL() + normalizedPath, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)

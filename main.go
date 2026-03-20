@@ -82,7 +82,7 @@ func main() {
 		client = lnctlkit.NewMockClient("sqlite://?mode=memory")
 		addr = envOrDefault("LUNA_EDGE_PANEL_ADDR", "127.0.0.1:18090")
 	} else {
-		client = lnctlkit.NewClient(envOrDefault("LUNA_EDGE_PANEL_MASTER_URL", "http://127.0.0.1:8080"))
+		client = lnctlkit.NewClient(envOrDefault("LUNA_MASTER_URL", "http://luna-master.luna-edge.svc.cluster.local:8080"))
 		addr = envOrDefault("LUNA_EDGE_PANEL_ADDR", ":18090")
 	}
 	mux := http.NewServeMux()

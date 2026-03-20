@@ -1,22 +1,17 @@
 apiVersion: v1
-kind: Namespace
-metadata:
-  name: luna-edge-panel
----
-apiVersion: v1
 kind: ConfigMap
 metadata:
   name: luna-edge-panel-config
-  namespace: luna-edge-panel
+  namespace: luna-edge
 data:
   LUNA_EDGE_PANEL_ADDR: "0.0.0.0:18090"
-  LUNA_EDGE_PANEL_MASTER_URL: "http://luna-edge-master.default.svc.cluster.local:8080"
+  LUNA_MASTER_URL: "http://luna-master.luna-edge.svc.cluster.local:8080"
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: luna-edge-panel
-  namespace: luna-edge-panel
+  namespace: luna-edge
 spec:
   replicas: 1
   revisionHistoryLimit: 2
@@ -30,7 +25,7 @@ spec:
     spec:
       containers:
         - name: panel
-          image: ghcr.io/OWNER/REPO:publish
+          image: ghcr.io/jabberwocky238/luna-edge-panel:latest
           imagePullPolicy: Always
           ports:
             - name: http
@@ -62,7 +57,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: luna-edge-panel
-  namespace: luna-edge-panel
+  namespace: luna-edge
 spec:
   selector:
     app: luna-edge-panel
@@ -75,8 +70,9 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: luna-edge-panel
-  namespace: luna-edge-panel
+  namespace: luna-edge
 spec:
+  ingressClassName: luna-edge
   rules:
     - host: luna-edge.app238.com
       http:
